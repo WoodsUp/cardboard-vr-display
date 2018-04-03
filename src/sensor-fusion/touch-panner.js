@@ -1,0 +1,96 @@
+/*
+ * Copyright 2015 Google Inc. All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import * as MathUtil from 'math-util.js';
+let ROTATE_SPEED = 0.5;
+/**
+ * Provides a quaternion responsible for pre-panning the scene before further
+ * transformations due to device sensors.
+ */
+function TouchPanner() {
+    window.addEventListener('touchstart', this.onTouchStart_.bind(this));
+    window.addEventListener('touchmove',  this.onTouchMove_.bind(this));
+    window.addEventListener('touchend',   this.onTouchEnd_.bind(this));
+
+    this.isTouching = false;
+    this.rotateStart = new MathUtil.Vector2();
+    this.rotateEnd   = new MathUtil.Vector2();
+    this.rotateDelta = new MathUtil.Vector2();
+
+    this.theta = 0;
+    this.phi   = 0;
+    this.orientation = new MathUtil.Quaternion();
+}
+
+TouchPanner.prototype.getOrientation = function() {
+    var euler = new MathUtil.Euler();
+
+    switch (window.orientation) {
+        case 0:
+            euler.set(this.phi, this.theta, 0, 'YXZ');
+            break;
+        case 90:
+        case -90:
+            euler.set(this.theta, this.phi, 0, 'XYZ');
+            break;
+    }
+
+    this.orientation.setFromEuler(euler);
+
+    return this.orientation;
+};
+
+TouchPanner.prototype.resetSensor = function() {
+    this.theta = 0;
+    this.phi   = 0;
+};
+
+TouchPanner.prototype.onTouchStart_ = function(e) {
+    // Only respond if there is exactly one touch.
+    if (e.touches.length != 1) {
+        return;
+    }
+    this.rotateStart.set(e.touches[0].pageX, e.touches[0].pageY);
+    this.isTouching = true;
+};
+
+TouchPanner.prototype.onTouchMove_ = function(e) {
+    if (!this.isTouching) {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.rotateEnd.set(e.touches[0].pageX, e.touches[0].pageY);
+    this.rotateDelta.subVectors(this.rotateEnd, this.rotateStart);
+    this.rotateStart.copy(this.rotateEnd);
+
+    // On iOS, direction is inverted.
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.platform);
+    if (isIOS()) {
+        this.rotateDelta.x *= -1;
+    }
+    var element = document.body;
+    this.phi   += 2 * Math.PI * this.rotateDelta.y / element.clientHeight * ROTATE_SPEED;
+    this.theta += 2 * Math.PI * this.rotateDelta.x / element.clientWidth  * ROTATE_SPEED;
+
+    // Prevent looking too far up or down.
+    this.phi = Math.min(Math.max(-Math.PI/2, this.phi), Math.PI/2);
+};
+
+TouchPanner.prototype.onTouchEnd_ = function(e) {
+    this.isTouching = false;
+};
+module.exports = TouchPanner;

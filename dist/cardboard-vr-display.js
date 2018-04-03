@@ -81,10 +81,10 @@
  */
 
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory(require('math-util.js')) :
-	typeof define === 'function' && define.amd ? define(['math-util.js'], factory) :
-	(global.CardboardVRDisplay = factory(global.MathUtil));
-}(this, (function (MathUtil) { 'use strict';
+	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
+	typeof define === 'function' && define.amd ? define(factory) :
+	(global.CardboardVRDisplay = factory());
+}(this, (function () { 'use strict';
 
 var asyncGenerator = function () {
   function AwaitValue(value) {
@@ -1426,7 +1426,28 @@ Distortion.prototype.distort = function (radius) {
 
 var degToRad = Math.PI / 180;
 var radToDeg = 180 / Math.PI;
-
+var Vector2 = function Vector2(x, y) {
+  this.x = x || 0;
+  this.y = y || 0;
+};
+Vector2.prototype = {
+  constructor: Vector2,
+  set: function set(x, y) {
+    this.x = x;
+    this.y = y;
+    return this;
+  },
+  copy: function copy(v) {
+    this.x = v.x;
+    this.y = v.y;
+    return this;
+  },
+  subVectors: function subVectors(a, b) {
+    this.x = a.x - b.x;
+    this.y = a.y - b.y;
+    return this;
+  }
+};
 var Vector3 = function Vector3(x, y, z) {
   this.x = x || 0;
   this.y = y || 0;
@@ -1499,14 +1520,14 @@ Vector3.prototype = {
     return this;
   }
 };
-var Quaternion$1 = function Quaternion$$1(x, y, z, w) {
+var Quaternion = function Quaternion(x, y, z, w) {
   this.x = x || 0;
   this.y = y || 0;
   this.z = z || 0;
   this.w = w !== undefined ? w : 1;
 };
-Quaternion$1.prototype = {
-  constructor: Quaternion$1,
+Quaternion.prototype = {
+  constructor: Quaternion,
   set: function set(x, y, z, w) {
     this.x = x;
     this.y = y;
@@ -2030,17 +2051,17 @@ function ComplementaryFilter(kFilter, isDebug) {
   this.currentGyroMeasurement = new SensorSample();
   this.previousGyroMeasurement = new SensorSample();
   if (isIOS()) {
-    this.filterQ = new Quaternion$1(-1, 0, 0, 1);
+    this.filterQ = new Quaternion(-1, 0, 0, 1);
   } else {
-    this.filterQ = new Quaternion$1(1, 0, 0, 1);
+    this.filterQ = new Quaternion(1, 0, 0, 1);
   }
-  this.previousFilterQ = new Quaternion$1();
+  this.previousFilterQ = new Quaternion();
   this.previousFilterQ.copy(this.filterQ);
-  this.accelQ = new Quaternion$1();
+  this.accelQ = new Quaternion();
   this.isOrientationInitialized = false;
   this.estimatedGravity = new Vector3();
   this.measuredGravity = new Vector3();
-  this.gyroIntegralQ = new Quaternion$1();
+  this.gyroIntegralQ = new Quaternion();
 }
 ComplementaryFilter.prototype.addAccelMeasurement = function (vector, timestampS) {
   this.currentAccelMeasurement.set(vector, timestampS);
@@ -2065,7 +2086,7 @@ ComplementaryFilter.prototype.run_ = function () {
   this.gyroIntegralQ.multiply(gyroDeltaQ);
   this.filterQ.copy(this.previousFilterQ);
   this.filterQ.multiply(gyroDeltaQ);
-  var invFilterQ = new Quaternion$1();
+  var invFilterQ = new Quaternion();
   invFilterQ.copy(this.filterQ);
   invFilterQ.inverse();
   this.estimatedGravity.set(0, 0, -1);
@@ -2073,13 +2094,13 @@ ComplementaryFilter.prototype.run_ = function () {
   this.estimatedGravity.normalize();
   this.measuredGravity.copy(this.currentAccelMeasurement.sample);
   this.measuredGravity.normalize();
-  var deltaQ = new Quaternion$1();
+  var deltaQ = new Quaternion();
   deltaQ.setFromUnitVectors(this.estimatedGravity, this.measuredGravity);
   deltaQ.inverse();
   if (this.isDebug) {
     console.log('Delta: %d deg, G_est: (%s, %s, %s), G_meas: (%s, %s, %s)', radToDeg * getQuaternionAngle(deltaQ), this.estimatedGravity.x.toFixed(1), this.estimatedGravity.y.toFixed(1), this.estimatedGravity.z.toFixed(1), this.measuredGravity.x.toFixed(1), this.measuredGravity.y.toFixed(1), this.measuredGravity.z.toFixed(1));
   }
-  var targetQ = new Quaternion$1();
+  var targetQ = new Quaternion();
   targetQ.copy(this.filterQ);
   targetQ.multiply(deltaQ);
   this.filterQ.slerp(targetQ, 1 - this.kFilter);
@@ -2092,13 +2113,13 @@ ComplementaryFilter.prototype.accelToQuaternion_ = function (accel) {
   var normAccel = new Vector3();
   normAccel.copy(accel);
   normAccel.normalize();
-  var quat = new Quaternion$1();
+  var quat = new Quaternion();
   quat.setFromUnitVectors(new Vector3(0, 0, -1), normAccel);
   quat.inverse();
   return quat;
 };
 ComplementaryFilter.prototype.gyroToQuaternionDelta_ = function (gyro, dt) {
-  var quat = new Quaternion$1();
+  var quat = new Quaternion();
   var axis = new Vector3();
   axis.copy(gyro);
   axis.normalize();
@@ -2109,10 +2130,10 @@ ComplementaryFilter.prototype.gyroToQuaternionDelta_ = function (gyro, dt) {
 function PosePredictor(predictionTimeS, isDebug) {
   this.predictionTimeS = predictionTimeS;
   this.isDebug = isDebug;
-  this.previousQ = new Quaternion$1();
+  this.previousQ = new Quaternion();
   this.previousTimestampS = null;
-  this.deltaQ = new Quaternion$1();
-  this.outQ = new Quaternion$1();
+  this.deltaQ = new Quaternion();
+  this.outQ = new Quaternion();
 }
 PosePredictor.prototype.getPrediction = function (currentQ, gyro, timestampS) {
   if (!this.previousTimestampS) {
@@ -2147,33 +2168,21 @@ function TouchPanner() {
     window.addEventListener('touchmove', this.onTouchMove_.bind(this));
     window.addEventListener('touchend', this.onTouchEnd_.bind(this));
     this.isTouching = false;
-    this.rotateStart = new MathUtil.Vector2();
-    this.rotateEnd = new MathUtil.Vector2();
-    this.rotateDelta = new MathUtil.Vector2();
+    this.rotateStart = new Vector2();
+    this.rotateEnd = new Vector2();
+    this.rotateDelta = new Vector2();
     this.theta = 0;
-    this.phi = 0;
-    this.orientation = new MathUtil.Quaternion();
+    this.orientation = new Quaternion();
 }
 TouchPanner.prototype.getOrientation = function () {
-    var euler = new MathUtil.Euler();
-    switch (window.orientation) {
-        case 0:
-            euler.set(this.phi, this.theta, 0, 'YXZ');
-            break;
-        case 90:
-        case -90:
-            euler.set(this.theta, this.phi, 0, 'XYZ');
-            break;
-    }
-    this.orientation.setFromEuler(euler);
+    this.orientation.setFromEulerXYZ(0, 0, this.theta);
     return this.orientation;
 };
 TouchPanner.prototype.resetSensor = function () {
     this.theta = 0;
-    this.phi = 0;
 };
 TouchPanner.prototype.onTouchStart_ = function (e) {
-    if (e.touches.length != 1) {
+    if (!e.touches || e.touches.length != 1) {
         return;
     }
     this.rotateStart.set(e.touches[0].pageX, e.touches[0].pageY);
@@ -2183,32 +2192,22 @@ TouchPanner.prototype.onTouchMove_ = function (e) {
     if (!this.isTouching) {
         return;
     }
-    event.preventDefault();
-    event.stopPropagation();
     this.rotateEnd.set(e.touches[0].pageX, e.touches[0].pageY);
     this.rotateDelta.subVectors(this.rotateEnd, this.rotateStart);
     this.rotateStart.copy(this.rotateEnd);
-    var isIOS = /iPad|iPhone|iPod/.test(navigator.platform);
     if (isIOS()) {
         this.rotateDelta.x *= -1;
     }
     var element = document.body;
-    this.phi += 2 * Math.PI * this.rotateDelta.y / element.clientHeight * ROTATE_SPEED;
     this.theta += 2 * Math.PI * this.rotateDelta.x / element.clientWidth * ROTATE_SPEED;
-    this.phi = Math.min(Math.max(-Math.PI / 2, this.phi), Math.PI / 2);
 };
 TouchPanner.prototype.onTouchEnd_ = function (e) {
     this.isTouching = false;
 };
-module.exports = TouchPanner;
-
-var TouchPanner$1 = Object.freeze({
-
-});
 
 function FusionPoseSensor(kFilter, predictionTime, yawOnly, isDebug) {
   this.yawOnly = yawOnly;
-  this.touchPanner = new TouchPanner$1();
+  this.touchPanner = new TouchPanner();
   this.accelerometer = new Vector3();
   this.gyroscope = new Vector3();
   this.filter = new ComplementaryFilter(kFilter, isDebug);
@@ -2218,21 +2217,21 @@ function FusionPoseSensor(kFilter, predictionTime, yawOnly, isDebug) {
   var chromeVersion = getChromeVersion();
   this.isDeviceMotionInRadians = !this.isIOS && chromeVersion && chromeVersion < 66;
   this.isWithoutDeviceMotion = isChromeWithoutDeviceMotion();
-  this.filterToWorldQ = new Quaternion$1();
+  this.filterToWorldQ = new Quaternion();
   if (isIOS()) {
     this.filterToWorldQ.setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2);
   } else {
     this.filterToWorldQ.setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
   }
-  this.inverseWorldToScreenQ = new Quaternion$1();
-  this.worldToScreenQ = new Quaternion$1();
-  this.originalPoseAdjustQ = new Quaternion$1();
+  this.inverseWorldToScreenQ = new Quaternion();
+  this.worldToScreenQ = new Quaternion();
+  this.originalPoseAdjustQ = new Quaternion();
   this.originalPoseAdjustQ.setFromAxisAngle(new Vector3(0, 0, 1), -window.orientation * Math.PI / 180);
   this.setScreenTransform_();
   if (isLandscapeMode()) {
     this.filterToWorldQ.multiply(this.inverseWorldToScreenQ);
   }
-  this.resetQ = new Quaternion$1();
+  this.resetQ = new Quaternion();
   this.orientationOut_ = new Float32Array(4);
   this.start();
 }
@@ -2243,8 +2242,8 @@ FusionPoseSensor.prototype.getOrientation = function () {
   var orientation = void 0;
   if (this.isWithoutDeviceMotion && this._deviceOrientationQ) {
     this.deviceOrientationFixQ = this.deviceOrientationFixQ || function () {
-      var z = new Quaternion$1().setFromAxisAngle(new Vector3(0, 0, -1), 0);
-      var y = new Quaternion$1();
+      var z = new Quaternion().setFromAxisAngle(new Vector3(0, 0, -1), 0);
+      var y = new Quaternion();
       if (window.orientation === -90) {
         y.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / -2);
       } else {
@@ -2253,12 +2252,12 @@ FusionPoseSensor.prototype.getOrientation = function () {
       return z.multiply(y);
     }();
     this.deviceOrientationFilterToWorldQ = this.deviceOrientationFilterToWorldQ || function () {
-      var q = new Quaternion$1();
+      var q = new Quaternion();
       q.setFromAxisAngle(new Vector3(1, 0, 0), -Math.PI / 2);
       return q;
     }();
     orientation = this._deviceOrientationQ;
-    var _out = new Quaternion$1();
+    var _out = new Quaternion();
     _out.copy(orientation);
     _out.multiply(this.deviceOrientationFilterToWorldQ);
     _out.multiply(this.resetQ);
@@ -2279,11 +2278,12 @@ FusionPoseSensor.prototype.getOrientation = function () {
     var filterOrientation = this.filter.getOrientation();
     orientation = this.posePredictor.getPrediction(filterOrientation, this.gyroscope, this.previousTimestampS);
   }
-  var out = new Quaternion$1();
+  var out = new Quaternion();
   out.copy(this.filterToWorldQ);
   out.multiply(this.resetQ);
   out.multiply(orientation);
   out.multiply(this.worldToScreenQ);
+  out.multiply(this.touchPanner.getOrientation());
   if (this.yawOnly) {
     out.x = 0;
     out.z = 0;
@@ -2307,7 +2307,7 @@ FusionPoseSensor.prototype.resetPose = function () {
   this.resetQ.multiply(this.originalPoseAdjustQ);
 };
 FusionPoseSensor.prototype.onDeviceOrientation_ = function (e) {
-  this._deviceOrientationQ = this._deviceOrientationQ || new Quaternion$1();
+  this._deviceOrientationQ = this._deviceOrientationQ || new Quaternion();
   var alpha = e.alpha,
       beta = e.beta,
       gamma = e.gamma;
@@ -2414,9 +2414,9 @@ if (screen.orientation) {
     }
   });
 }
-var SENSOR_TO_VR = new Quaternion$1();
+var SENSOR_TO_VR = new Quaternion();
 SENSOR_TO_VR.setFromAxisAngle(X_AXIS, -Math.PI / 2);
-SENSOR_TO_VR.multiply(new Quaternion$1().setFromAxisAngle(Z_AXIS, Math.PI / 2));
+SENSOR_TO_VR.multiply(new Quaternion().setFromAxisAngle(Z_AXIS, Math.PI / 2));
 var PoseSensor = function () {
   function PoseSensor(config) {
     classCallCheck(this, PoseSensor);
@@ -2426,9 +2426,9 @@ var PoseSensor = function () {
     this._out = new Float32Array(4);
     this.api = null;
     this.errors = [];
-    this._sensorQ = new Quaternion$1();
-    this._worldToScreenQ = new Quaternion$1();
-    this._outQ = new Quaternion$1();
+    this._sensorQ = new Quaternion();
+    this._worldToScreenQ = new Quaternion();
+    this._outQ = new Quaternion();
     this._onSensorRead = this._onSensorRead.bind(this);
     this._onSensorError = this._onSensorError.bind(this);
     this._onOrientationChange = this._onOrientationChange.bind(this);
