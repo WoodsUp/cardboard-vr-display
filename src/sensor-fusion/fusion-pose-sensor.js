@@ -16,7 +16,7 @@ import ComplementaryFilter from './complementary-filter.js';
 import PosePredictor from './pose-predictor.js';
 import * as MathUtil from '../math-util.js';
 import * as Util from '../util.js';
-
+import TouchPanner from './touch-panner.js';
 /**
  * The pose sensor, implemented using DeviceMotion APIs.
  *
@@ -27,7 +27,7 @@ import * as Util from '../util.js';
  */
 function FusionPoseSensor(kFilter, predictionTime, yawOnly, isDebug) {
   this.yawOnly = yawOnly;
-
+  this.touchPanner = new TouchPanner();
   this.accelerometer = new MathUtil.Vector3();
   this.gyroscope = new MathUtil.Vector3();
 
@@ -71,7 +71,7 @@ function FusionPoseSensor(kFilter, predictionTime, yawOnly, isDebug) {
   this.resetQ = new MathUtil.Quaternion();
 
   this.orientationOut_ = new Float32Array(4);
-
+  this.enableTouchPanner = false;
   this.start();
 }
 
@@ -89,7 +89,7 @@ FusionPoseSensor.prototype.getOrientation = function() {
     // on the Y axis to get the correct orientation of looking down the -Z axis.
     this.deviceOrientationFixQ = this.deviceOrientationFixQ || (function () {
       const z = new MathUtil.Quaternion().setFromAxisAngle(new MathUtil.Vector3(0, 0, -1), 0);
-      const y = new MathUtil.Quaternion()
+      const y = new MathUtil.Quaternion();
 
       if (window.orientation === -90) {
         y.setFromAxisAngle(new MathUtil.Vector3(0, 1, 0), Math.PI / -2);
@@ -107,13 +107,13 @@ FusionPoseSensor.prototype.getOrientation = function() {
     })();
 
     orientation = this._deviceOrientationQ;
-    var out = new MathUtil.Quaternion();
+    let out = new MathUtil.Quaternion();
     out.copy(orientation);
     out.multiply(this.deviceOrientationFilterToWorldQ);
     out.multiply(this.resetQ);
     out.multiply(this.worldToScreenQ);
     out.multiplyQuaternions(this.deviceOrientationFixQ, out);
-
+    out.multiply(this.touchPanner.getOrientation());
     // Handle the yaw-only case.
     if (this.yawOnly) {
       // Make a quaternion that only turns around the Y-axis.
@@ -139,12 +139,12 @@ FusionPoseSensor.prototype.getOrientation = function() {
   }
 
   // Convert to THREE coordinate system: -Z forward, Y up, X right.
-  var out = new MathUtil.Quaternion();
+  let out = new MathUtil.Quaternion();
   out.copy(this.filterToWorldQ);
   out.multiply(this.resetQ);
+  out.multiply(this.touchPanner.getOrientation());
   out.multiply(orientation);
   out.multiply(this.worldToScreenQ);
-
   // Handle the yaw-only case.
   if (this.yawOnly) {
     // Make a quaternion that only turns around the Y-axis.
